@@ -14,4 +14,4 @@ A few examples of what can be achieved throught this framework are available in 
 
 <br>
 
-<p align="center">developed @ ancient_labs</p>
+<p align="center">developed <code>@</code> ancient_labs</p>
