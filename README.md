@@ -8,6 +8,10 @@ A few examples of what can be achieved throught this framework are available in 
 * Building a cfac project without bothering with nonsense building systems, either just follow the conventions for a normal building process or script your own building process. No private-sourcing mechanism will be tolerated, such as `cc main.c source1.c source2.c` as this just kills your runtime performance, however a build-once and use later mechanism like this is still available but it should be used for huge standalone components of a project, such as a big base layer for interacting with something.
 * The [Megazine](https://github.com/chx05/megazine) library is powered by this framework. It is a meta library that allows creating a database-like binary file simply from in-language defined structs, without writing a single line of code.
 
+<br>
+
 ---
 
-- developed @ ancient_labs
+<br>
+
+<p align="center">developed @ ancient_labs</p>
