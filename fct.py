@@ -26,7 +26,7 @@ class BuildOptions:
     prjname: str = dcfield(default_factory=get_prjname)
     output_folder: str = "o"
     gen_folder: str = "g"
-    sources: list[str] = dcfield(default_factory=list)
+    source: str = "main.cpp"
     # index pointing to self.sources
     entry_source: int = 0
 
@@ -213,12 +213,7 @@ def execute_periodics() -> None:
 
     try:
         index = clang.cindex.Index.create()
-        # TODO why parse doesn't work without single source?
-        #unsaved_files = list(map(
-        #    lambda p: (p, open(p).read()),
-        #    bopt.sources
-        #))
-        tu = index.parse(bopt.sources[bopt.entry_source], bopt.flags)
+        tu = index.parse(bopt.source, bopt.flags)
     except clang.cindex.TranslationUnitLoadError:
         error("Clang Call Failed")
         return # unreachable
@@ -250,18 +245,9 @@ def execute_periodics() -> None:
             error(f"Exception from periodic tool, {repr(tool_path)} says {e.__class__} {e.args}")
 
 
-def add_sources(sources: list[str] = []) -> None:
+def add_source(source: str) -> None:
     global bopt
-
-    exts = ["c"]
-    if bopt.cpp:
-        exts.append("cpp")
-
-    if sources == []:
-        for e in exts:
-            sources += glob(f"**/*.{e}", recursive=True)
-    
-    bopt.sources += sources
+    bopt.source = source
 
 
 def build() -> str | None:
@@ -274,15 +260,14 @@ def build() -> str | None:
 
     global bopt
     
-    output_path = joinpath(bopt.output_folder, bopt.prjname)
-    sources_joined = " ".join(bopt.sources)
+    output_path = joinpath(bopt.output_folder, bopt.prjname) + ".out"
     flags_joined = " ".join(bopt.flags)
     cc = bopt.cc
     if bopt.cpp and bopt.cc == "gcc":
         cc = "g++"
 
     execute_periodics()
-    r = cmd(f"{cc} {sources_joined} -o {output_path}.out {flags_joined}")
+    r = cmd(f"{cc} {bopt.source} -o {output_path} {flags_joined}")
 
     return output_path if r == 0 else None
 
