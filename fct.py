@@ -121,7 +121,7 @@ def run_argv() -> None:
     global args_i
     args = sys.argv[1:]
     
-    match fetch_arg().lower():
+    match fetch_arg("Use `fct help`").lower():
         case "help":
             print(HELP)
         
@@ -155,12 +155,12 @@ def run_argv() -> None:
     finish()
     
 
-def fetch_arg() -> str:
+def fetch_arg(err_msg: str = "Arg expected") -> str:
     global args
     global args_i
 
     if args_i >= len(args):
-        error("Arg expected")
+        error(err_msg)
 
     arg = args[args_i]
     args_i += 1
