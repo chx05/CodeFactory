@@ -64,6 +64,7 @@ def _collect_tagged_nodes(node: ClangNode, tags: list[str], kinds: list[str]) ->
 def get_fully_qualified_name(node: ClangNode, use_spelling_instead: bool = False) -> str:
     return "::".join(get_fully_qualified_name_parts(node, use_spelling_instead))
 
+
 def get_fully_qualified_name_parts(node: ClangNode, use_spelling_instead: bool = False) -> list[str]:
     parts = []
     
@@ -91,3 +92,7 @@ def get_fields(node: ClangNode) -> list[ClangNode]:
             fields.append(c)
 
     return fields
+
+
+def typekind(clang_type: Any) -> str:
+    return clang_type.kind.name.lower()

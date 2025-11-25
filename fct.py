@@ -6,9 +6,10 @@ import clang.cindex
 import clang.enumerations
 import clang.native
 import analysis
+import shutil
 
 from types import ModuleType
-from genericpath import isdir
+from genericpath import isdir, isfile
 from importlib import util
 from os.path import join as joinpath
 from pathlib import Path
@@ -19,6 +20,15 @@ from dataclasses import dataclass, field as dcfield
 def get_prjname() -> str:
     prj_dir = Path(os.getcwd())
     return prj_dir.parts[-1]
+
+
+class FctError(Exception):
+    def __init__(self, msg: str) -> None:
+        super().__init__(msg)
+
+    @property
+    def msg(self) -> str:
+        return self.args[0]
 
 
 @dataclass
@@ -33,7 +43,7 @@ class BuildOptions:
     cc: str = "gcc"
     cpp: bool = True
     flags: list[str] = dcfield(default_factory=lambda:[
-        "-std=c++17",
+        "-std=c++23",
         "-Wno-attributes",
         "-I/usr/include/c++/11",
         "-I/usr/include/x86_64-linux-gnu/c++/11",
@@ -46,6 +56,9 @@ class BuildOptions:
 
     periodics: list[str] = dcfield(default_factory=list)
     manuals: list[str] = dcfield(default_factory=list)
+
+    run_returncode: int | None = None
+    use_exceptions_instead_of_exit: bool = False
 
 
 args: list[str] = []
@@ -64,9 +77,11 @@ Commands
     Run
         Builds and runs the executable
     Apply(tool_name)
-        Runs a manual script named <tool_name>.py
+        Runs a manual tool named <tool_name>.py, use `.` to apply all manuals
     Prepare(header_name)
         Creates empty header <header_name>.g.h in folder `g/`
+    Clear
+        Removes the cached contents from `g/` and `o/` folders
 """.strip()
 
 
@@ -101,7 +116,6 @@ def install_tools(periodics: str | list[str] = "periodics", manuals: str | list[
     if isinstance(periodics, str) and isdir(periodics):
         bopt.periodics += glob(f"{periodics}/*.py")
 
-    
     if isinstance(manuals, str) and isdir(manuals):
         bopt.manuals += glob(f"{manuals}/*.py")
 
@@ -109,53 +123,86 @@ def install_tools(periodics: str | list[str] = "periodics", manuals: str | list[
 def run_argv() -> None:
     """
     runs the requests contained in argv.
-    eventual generations will be outputed to `g/` folder
+    eventual generations will be outputed to `g/` folder.
     """
 
     global bopt
 
-    os.makedirs(bopt.output_folder, exist_ok=True)
-    os.makedirs(bopt.gen_folder, exist_ok=True)
+    bopt.run_returncode = None
+    make_dirs()
 
     global args
     global args_i
     args = sys.argv[1:]
     
-    match fetch_arg("Use `fct help`").lower():
+    match fetch_arg("Use `fct help`."):
         case "help":
             print(HELP)
         
         case "build":
             build()
-            return
         
         case "run":
             print("Building:")
             out_path = build()
             if out_path != None:
                 print("Running:")
-                subprocess.run([out_path] + args[args_i:])
-            return
+                p = subprocess.run([out_path] + args[args_i:])
+                bopt.run_returncode = p.returncode
         
         case "prepare":
-            # TODO: check if header already exists and
-            #       alert the user about replacement
-            header_name = fetch_arg()
+            header_name = fetch_arg("Expected header name")
             header_path = joinpath(bopt.gen_folder, header_name + ".g.h")
+
+            if isfile(header_path):
+                fa = fetch_arg("Header already exists, use `fct prepare <header_name> force` instead")
+                if fa != "force":
+                    error(f"Expected 'force' instead of {repr(fa)}")
+
             with open(header_path, "w") as h:
                 h.write(PREPARED_HEADER)
                 h.write("\n")
         
         case "apply":
-            raise NotImplementedError()
+            tool_name = fetch_arg("Expected tool name")
+
+            if tool_name == ".":
+                execute_tools(bopt.manuals)
+            else:
+                found_ones = list(filter(lambda m: Path(m).stem == tool_name, bopt.manuals))
+
+                if len(found_ones) == 0:
+                    error("No manual tool was found, check the installed ones")
+
+                execute_tools(found_ones)
+        
+        case "clear":
+            remove_dirs()
+            make_dirs()
 
         case _:
-            error("Command Not Found")
-    
-    finish()
+            error("Command not found")
     
 
-def fetch_arg(err_msg: str = "Arg expected") -> str:
+def remove_dirs() -> None:
+    global bopt
+
+    shutil.rmtree(bopt.output_folder, ignore_errors=True)
+    shutil.rmtree(bopt.gen_folder, ignore_errors=True)
+
+
+def make_dirs() -> None:
+    global bopt
+
+    os.makedirs(bopt.output_folder, exist_ok=True)
+    os.makedirs(bopt.gen_folder, exist_ok=True)
+
+
+def fetch_arg(err_msg: str) -> str:
+    return fetch_arg_case_sensitive(err_msg).lower()
+
+
+def fetch_arg_case_sensitive(err_msg: str) -> str:
     global args
     global args_i
 
@@ -177,15 +224,13 @@ def cmd(s: str) -> int:
 
 
 def error(msg: str) -> None:
+    global bopt
+
+    if bopt.use_exceptions_instead_of_exit:
+        raise FctError(msg)
+
     print(f"Error: {msg}")
     sys.exit(1)
-
-
-def finish(msg: str = "") -> None:
-    if msg != "":
-        print(f"Finished: {msg}")
-    
-    sys.exit(0)
 
 
 def import_mod_from_path(tool_path: str) -> ModuleType:
@@ -208,8 +253,11 @@ def import_mod_from_path(tool_path: str) -> ModuleType:
     return m
 
 
-def execute_periodics() -> None:
+def execute_tools(tools_paths: list[str]) -> None:
     global bopt
+
+    if len(tools_paths) == 0:
+        return
 
     try:
         index = clang.cindex.Index.create()
@@ -229,7 +277,7 @@ def execute_periodics() -> None:
     # from libclang, this is a wanted behavior because those errors
     # might be caused by a missing symbol, and that symbol may be missing
     # because it has still to be generated by one of these periodic scripts
-    for tool_path in bopt.periodics:
+    for tool_path in tools_paths:
         try:
             m = import_mod_from_path(tool_path)
             gs: list[CppBuilder] = m.execute(tu)
@@ -266,24 +314,39 @@ def build() -> str | None:
     if bopt.cpp and bopt.cc == "gcc":
         cc = "g++"
 
-    execute_periodics()
+    execute_tools(bopt.periodics)
     r = cmd(f"{cc} {bopt.source} -o {output_path} {flags_joined}")
 
     return output_path if r == 0 else None
 
 
-class CppBuilder:
-    def __init__(self, name: str, includes: list[str] = [], single_indent: str = "    ") -> None:
-        self.name: str = name
-        self.includes: list[str] = includes
-        self.data: list[str] = []
-        self.indent_level: int = 0
+class CppPieceBuilder:
+    def __init__(self, decl: str, enclose_in_body: bool = True, single_indent: str = " " * 4) -> None:
+        self.decl: str = decl
         self.single_indent: str = single_indent
+        self.indent_level: int = 1
+        self.data: list[str] = []
+        self.enclose_in_body: bool = enclose_in_body
+
+        if self.enclose_in_body:
+            self.body()
     
-    def line(self, l: str) -> None:
-        self.data.append(self.single_indent * self.indent_level)
-        self.data.append(l)
-        self.data.append("\n")
+    def line(self, l: str = "") -> None:
+        if l != "":
+            self.add_indented(l)
+        
+        self.add_flat("\n")
+    
+    def add_indented(self, s: str) -> None:
+        self.add_flat(self.single_indent * self.indent_level)
+        self.add_flat(s)
+    
+    def add_flat(self, s: str) -> None:
+        self.data.append(s)
+
+    def sep(self) -> None:
+        self.line("")
+        self.line("")
 
     def body(self) -> None:
         self.line("{")
@@ -300,7 +363,29 @@ class CppBuilder:
         self.indent_level -= 1
     
     def build(self) -> str:
-        return "".join(self.data)
+        if self.enclose_in_body:
+            self.unbody()
+        
+        return self.single_indent + self.decl + "\n" + "".join(self.data)
+
+
+class CppBuilder:
+    def __init__(self, name: str, includes: list[str] = [], single_indent: str = " " * 4) -> None:
+        self.name: str = name
+        self.includes: list[str] = includes
+        self.data: list[CppPieceBuilder] = []
+        self.single_indent: str = single_indent
+    
+    def add(self, piece: CppPieceBuilder) -> None:
+        self.data.append(piece)
+
+    def build(self) -> str:
+        ind = self.single_indent
+        decls_sep = f";\n\n{ind}"
+        declarations = ind + decls_sep.join(map(lambda p: p.decl, self.data)) + decls_sep
+        definitions = "\n\n".join(map(lambda p: p.build(), self.data))
+
+        return declarations + "\n\n" + definitions
     
     def build_includes(self) -> str:
         b = []
