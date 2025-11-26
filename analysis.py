@@ -96,3 +96,26 @@ def get_fields(node: ClangNode) -> list[ClangNode]:
 
 def typekind(clang_type: Any) -> str:
     return clang_type.kind.name.lower()
+
+
+def hastag(node: ClangNode, tag: str) -> bool:
+    return len(hastags(node, [tag])) == 1
+
+
+def hastags(node: ClangNode, tags: list[str]) -> list[str]:
+    matching_tags = []
+    found_tags = collect_tags(node)
+    for t in tags:
+        if t in found_tags:
+            matching_tags.append(t)
+    
+    return matching_tags
+
+
+def collect_tags(node: ClangNode) -> list[str]:
+    tags = []
+    for c in node.get_children():
+        if kindof(c) == "annotate_attr":
+            tags.append(c.displayname.lower())
+
+    return tags            
