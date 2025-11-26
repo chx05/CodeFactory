@@ -28,7 +28,7 @@ def collect_enum_members(enum: ClangNode) -> list[ClangNode]:
 def gen_enum_info(fqn: str, enum: ClangNode) -> CppPieceBuilder:
     members = collect_enum_members(enum)
 
-    repr_pb = CppPieceBuilder(f"static char const* repr({fqn} self)")
+    repr_pb = CppPieceBuilder(f"static std::string repr({fqn} self)")
     repr_pb.line("switch (self)")
     repr_pb.body()
     
@@ -39,7 +39,7 @@ def gen_enum_info(fqn: str, enum: ClangNode) -> CppPieceBuilder:
         repr_pb.unindent()
 
     repr_pb.unbody()
-    repr_pb.line(f'return "{fqn}::_";')
+    repr_pb.line(f'return (std::stringstream() << "{fqn}::(" << (int)self << ")").str();')
 
     pb = CppPieceBuilder()
     pb.add_flat(
