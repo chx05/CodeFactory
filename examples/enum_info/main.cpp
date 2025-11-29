@@ -1,7 +1,7 @@
-#include "../../fct.h"
 #include <stdint.h>
 #include <iostream>
 
+#define FCT_NOTE(s) [[clang::annotate(s)]]
 #define ENUM_INFO FCT_NOTE("enum_info")
 
 enum struct ENUM_INFO TokenKind : char

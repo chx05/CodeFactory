@@ -5,7 +5,6 @@ import clang
 import clang.cindex
 import clang.enumerations
 import clang.native
-import analysis
 import shutil
 
 from types import ModuleType

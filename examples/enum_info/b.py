@@ -1,5 +1,3 @@
-import sys
-sys.path.append('../..')
 import fct
 
 from periodics import enum_count

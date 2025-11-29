@@ -1,8 +1,8 @@
-#include "../../fct.h"
 #include <stdint.h>
 #include <string>
 #include <iostream>
 
+#define FCT_NOTE(s) [[clang::annotate(s)]]
 #define REPR FCT_NOTE("struct_repr")
 #define REPR_INLINE FCT_NOTE("struct_repr_inline")
 
