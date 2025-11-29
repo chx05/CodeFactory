@@ -54,11 +54,11 @@ struct EnumInfo<{fqn}>
     return pb
 
 
-def emit_enum_info_to_cb(cls: ClangNode) -> None:
+def emit_enum_info_to_cb(enum: ClangNode) -> None:
     global cpp
 
-    fqn = fa.get_fully_qualified_name(cls)
-    cpp.add(fqn, gen_enum_info(fqn, cls))
+    fqn = fa.get_fully_qualified_name(enum)
+    cpp.add(fqn, gen_enum_info(fqn, enum))
 
 
 def execute(tu: TranslationUnit) -> list[fct.CppBuilder]:

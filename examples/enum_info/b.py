@@ -1,7 +1,5 @@
 import fct
 
-from periodics import enum_count
-
-#fct.bopt.use_exceptions_instead_of_exit = True
-fct.install_tools(periodics=[enum_count], manuals=[])
+from fct_toolbox import enum_info
+fct.install_tools(periodics=[enum_info], manuals=[])
 fct.run_argv()

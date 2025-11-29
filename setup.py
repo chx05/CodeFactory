@@ -1,3 +1,4 @@
 from distutils.core import setup
 
-setup(name='fct', version='1.0.0', packages=['fct'])
+v = '2025.11.29'
+setup(name='fct', version=v, packages=['fct', 'fct_toolbox'])

@@ -1,0 +1,1 @@
+The source gen scripts mentioned in the example projects' b.py files were moved to the root dir `/fct_toolbox/` as they are now directly shipped along with the fct python package
