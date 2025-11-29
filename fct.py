@@ -36,6 +36,7 @@ class BuildOptions:
     prjname: str = dcfield(default_factory=get_prjname)
     output_folder: str = "o"
     gen_folder: str = "g"
+    templs_folder: str = "t"
     source: str = "main.cpp"
     # index pointing to self.sources
     entry_source: int = 0
@@ -301,7 +302,8 @@ class CppPieceBuilder:
         head: str | None = None,
         enclose_in_body: bool = True,
         is_def: bool = True,
-        single_indent: str = " " * 4
+        initial_indent_level: int = 1,
+        single_indent: str = " " * 4,
     ) -> None:
         if decl == "":
             # free pieces can't have an automatic body
@@ -310,7 +312,7 @@ class CppPieceBuilder:
         self.decl: str = decl
         self.head: str = decl if head == None else head
         self.single_indent: str = single_indent
-        self.indent_level: int = 1
+        self.indent_level: int = initial_indent_level
         self.data: list[str] = []
         self.enclose_in_body: bool = enclose_in_body
         self.is_def: bool = is_def
@@ -330,6 +332,9 @@ class CppPieceBuilder:
     
     def add_flat(self, s: str) -> None:
         self.data.append(s)
+    
+    def add_pb(self, pb: "CppPieceBuilder") -> None:
+        self.add_flat(pb.build())
 
     def sep(self) -> None:
         self.line("")
@@ -402,3 +407,44 @@ class CppBuilder:
             b.append(f"#include {incl}")
         
         return "\n".join(b)
+
+
+_cached_templs = {}
+def templ(name: str, params: list[tuple[str, str]] = []) -> CppPieceBuilder:
+    global _cached_templs
+    global bopt
+
+    if name in _cached_templs:
+        return _cached_templs[name]
+
+    pb = CppPieceBuilder()
+    _cached_templs[name] = pb
+
+    fct_start_token = f"/*FCT_START_TEMPLATE*/"
+    with open(joinpath(bopt.templs_folder, name + ".t.h")) as t:
+        templ = t.read()
+
+        try:
+            templ_start_idx = templ.index(fct_start_token)
+        except ValueError:
+            templ_start_idx = 0
+            fct_start_token = ""
+
+        templ = templ[templ_start_idx+len(fct_start_token):]
+
+        for pname, pvalue in params:
+            pvalue = pvalue.replace("\n", "\\\n").strip().removesuffix("\\")
+            pb.add_flat(f"#define {pname} {pvalue}\n")
+
+        pb.add_flat(templ)
+
+        for pname, _ in params:
+            pb.add_flat(f"#undef {pname}\n")
+
+    return pb
+
+
+def piece(c: str) -> CppPieceBuilder:
+    pb = CppPieceBuilder()
+    pb.add_flat(c)
+    return pb
