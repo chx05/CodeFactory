@@ -18,15 +18,25 @@ struct SOA REPR Person
 
 int main()
 {
+    constexpr auto NumberOfPeople = 100;
+
+    // soa first
+
     auto p = Person { .name = "John", .age = 30 };
-    auto people = g::Soa<Person, 100>();
-    people.set(10, p);
-
+    auto soa_people = g::Soa<Person, NumberOfPeople>();
+    soa_people.set(10, p);
+    
     DUMP(g::repr(p));
-    DUMP(g::repr(people.get(10)));
+    DUMP(g::repr(soa_people.get(10)));
+    DUMP(soa_people.get_name(10));
+    DUMP(uint(soa_people.get_age(10)));
 
-    DUMP(uint(people.get_age(10)));
-    DUMP(uint(people.get_age(2)));
+    // back to aos
+
+    Person aos_people[NumberOfPeople];
+    soa_people.copy_to_aos(aos_people);
+
+    DUMP(g::repr(aos_people[10]));
 
     return 0;
 }

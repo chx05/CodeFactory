@@ -26,13 +26,19 @@ f"""
 template<size_t Capacity>
 struct Soa<{fqn}, Capacity>
 {{
+    // transforming to aos
+    void copy_to_aos({fqn}* out_buffer)
+    {{
+        for (size_t i = 0; i < Capacity; i++)
+            out_buffer[i] = get(i);
+    }}
 """
     )
 
     full_getter = CppPieceBuilder(f"inline {fqn} get(size_t idx)")
-    full_setter = CppPieceBuilder(f"inline void set(size_t idx, {fqn} value)")
-
     full_getter.line(f"{fqn} r;")
+
+    full_setter = CppPieceBuilder(f"inline void set(size_t idx, {fqn} value)")
 
     for c in cls.get_children():
         if fa.kindof(c) != "field_decl":

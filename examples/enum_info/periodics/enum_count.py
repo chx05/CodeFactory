@@ -66,16 +66,15 @@ def emit_enum_info_to_cb(cls: ClangNode) -> None:
 def execute(tu: TranslationUnit) -> list[fct.CppBuilder]:
     global cpp
 
-    unbound_enum_info = CppPieceBuilder()
-    unbound_enum_info.add_flat(
-r"""
+    cpp.add("unbound_enum_info", fct.piece(
+"""
 template<typename EnumT>
 struct EnumInfo
 {
     
 };
-""")
-    cpp.add("unbound_enum_info", unbound_enum_info)
+"""
+    ))
 
     tagged_enums = fa.collect_tagged_decls(tu.cursor, ["enum_info"], ["enum_decl"])
     for en in tagged_enums:

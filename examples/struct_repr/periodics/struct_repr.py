@@ -44,12 +44,12 @@ def emit_field_repr_to_pb(pb: CppPieceBuilder, f: ClangNode) -> None:
                 case "uint8_t":
                     pb.add_flat(f"uint({fvalue})")
                 case _:
-                    pb.add_flat(f"'\\'' << {fvalue} << '\\''")
+                    pb.add_flat(f"'\\''; normalize_char(ss, {fvalue}); ss << '\\''")
     
         case "pointer":
             # c string
             if fa.typekind(t.get_pointee()) in ["char_s", "char_u"]:
-                pb.add_flat(f"repr(std::string({fvalue}))")
+                pb.add_flat(f"repr_s(std::string({fvalue}))")
             else:
                 # generic pointer
                 # TODO: pointers to struct should be fully printed with `&<...>`
@@ -58,7 +58,7 @@ def emit_field_repr_to_pb(pb: CppPieceBuilder, f: ClangNode) -> None:
     
         case "record":
             if alias_type == "std::string" and t.spelling == "std::basic_string<char>":
-                pb.add_flat(f'"std::string(" << repr({fvalue}) << ")"')
+                pb.add_flat(f'"std::string(" << repr_s({fvalue}) << ")"')
             else:
                 decl = t.get_declaration()
                 if decl not in tagged_structs and SKIP_FIELDS_OF_UNREGISTERED_STRUCT_TYPES:
@@ -122,25 +122,34 @@ def emit_struct_repr_to_cb(cls: ClangNode) -> None:
 def execute(tu: TranslationUnit) -> list[fct.CppBuilder]:
     global cpp
 
-    repr_builder = CppPieceBuilder("std::string repr(std::string const& s)")
-    repr_builder.add_flat(r"""
-        std::stringstream ss;
-        ss << "\"";
-        for (char c : s) {
-            switch (c) {
-                case '"':  ss << "\\\""; break;
-                case '\\': ss << "\\\\"; break;
-                case '\n': ss << "\\n"; break;
-                case '\t': ss << "\\t"; break;
-                case '\r': ss << "\\r"; break;
-                case '\0': ss << "\\0"; break;
-                default:   ss << c; break;
-            }
-        }
-        ss << "\"";
-        return ss.str();
+    repr_s = CppPieceBuilder()
+    repr_s.add_flat(
+r"""
+void normalize_char(std::stringstream& ss, char c)
+{
+    switch (c) {
+        case '"':  ss << "\\\""; break;
+        case '\\': ss << "\\\\"; break;
+        case '\n': ss << "\\n";  break;
+        case '\t': ss << "\\t";  break;
+        case '\r': ss << "\\r";  break;
+        case '\0': ss << "\\0";  break;
+        default:   ss << c;      break;
+    }
+}
+
+std::string repr_s(std::string const& s)
+{
+    std::stringstream ss;
+    ss << "\"";
+    for (char c : s)
+        normalize_char(ss, c);
+        
+    ss << "\"";
+    return ss.str();
+}
 """)
-    cpp.add("std::string", repr_builder)
+    cpp.add("std::string and char repr", repr_s)
 
     # static precomputed indent
     cpp.add(
