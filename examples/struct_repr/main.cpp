@@ -47,6 +47,8 @@ int main()
             .sub_name = "SubJohn",
             .sub_age = -15,
             .sex = 'm',
+            // this also works 
+            //.sex = '\n',
             .is_alive = true,
             .some_int = 123,
             .text = "some new line \n, some tab \t, some quotes: \"Hello World!\"",
