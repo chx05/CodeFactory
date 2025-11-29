@@ -30,29 +30,35 @@ class FctError(Exception):
         return self.args[0]
 
 
+CPP_INCLUDES_FLAGS = [
+    "-I/usr/include/c++/11",
+    "-I/usr/include/x86_64-linux-gnu/c++/11",
+    "-I/usr/include/c++/11/backward",
+]
+
+
 @dataclass
 class BuildOptions:
     prjname: str = dcfield(default_factory=get_prjname)
     output_folder: str = "o"
     gen_folder: str = "g"
     templs_folder: str = "t"
-    source: str = "main.cpp"
+    source: str = "main.cpp" or "main.c"
     # index pointing to self.sources
     entry_source: int = 0
 
-    cc: str = "gcc"
-    cpp: bool = True
-    flags: list[str] = dcfield(default_factory=lambda:[
-        "-std=c++23",
+    cc: str = "g++" or "gcc" or "clang"
+    cpp: bool = True or False
+    flags: set[str] = dcfield(default_factory=lambda: set([
         "-Wno-attributes",
-        "-I/usr/include/c++/11",
-        "-I/usr/include/x86_64-linux-gnu/c++/11",
-        "-I/usr/include/c++/11/backward",
+
+        # + CPP_INCLUDES_FLAGS, if cpp
+
         "-I/usr/lib/gcc/x86_64-linux-gnu/11/include",
         "-I/usr/local/include",
         "-I/usr/include/x86_64-linux-gnu",
         "-I/usr/include",
-    ])
+    ]))
 
     periodics: list[ModuleType] = dcfield(default_factory=list)
     manuals: list[ModuleType] = dcfield(default_factory=list)
@@ -61,10 +67,44 @@ class BuildOptions:
     use_exceptions_instead_of_exit: bool = False
 
 
+def use_c_instead(version: str = "c11") -> None:
+    assert '++' not in version
+
+    global bopt
+
+    bopt.cpp = False
+    bopt.source = "main.c"
+    switch_lang_version(version)
+
+    bopt.flags = set(filter(lambda f: f not in CPP_INCLUDES_FLAGS, bopt.flags))
+
+
+def use_cpp_instead(version: str = "c++23") -> None:
+    assert '++' in version
+
+    global bopt
+
+    bopt.cpp = True
+    bopt.source = "main.cpp"
+    switch_lang_version(version)
+
+    bopt.flags.update(CPP_INCLUDES_FLAGS)
+
+
+def switch_lang_version(version: str) -> None:
+    global bopt
+
+    cfg = "-std="
+
+    bopt.flags = set(filter(lambda f: not f.startswith(cfg), bopt.flags))
+    bopt.flags.add(cfg + version)
+
+
 args: list[str] = []
 args_i: int = 0
 
 bopt = BuildOptions()
+use_cpp_instead()
 
 
 HELP = """
@@ -286,7 +326,7 @@ def build() -> str | None:
     output_path = joinpath(bopt.output_folder, bopt.prjname) + ".out"
     flags_joined = " ".join(bopt.flags)
     cc = bopt.cc
-    if bopt.cpp and bopt.cc == "gcc":
+    if bopt.cpp and cc == "gcc":
         cc = "g++"
 
     execute_tools(bopt.periodics)
