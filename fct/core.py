@@ -308,7 +308,7 @@ def execute_tools(tools: list[ModuleType]) -> None:
             error(f"Exception from periodic tool, {tool.__name__} says {e.__class__} {e.args}")
 
 
-def add_source(source: str) -> None:
+def change_source(source: str) -> None:
     global bopt
     bopt.source = source
 
@@ -376,8 +376,8 @@ class CppPieceBuilder:
         self.add_flat(pb.build())
 
     def sep(self) -> None:
-        self.line("")
-        self.line("")
+        self.line()
+        self.line()
 
     def body(self) -> None:
         self.line("{")
@@ -401,11 +401,22 @@ class CppPieceBuilder:
 
 
 class CppBuilder:
-    def __init__(self, name: str, includes: list[str] = [], single_indent: str = " " * 4) -> None:
+    def __init__(
+        self,
+        name: str,
+        includes: list[str] = [],
+        single_indent: str = " " * 4,
+        subnamespace: str = "",
+        auto_subnamespace: bool = False
+    ) -> None:
         self.name: str = name
         self.includes: list[str] = includes
         self.data: dict[str, CppPieceBuilder] = {}
         self.single_indent: str = single_indent
+        self.subnamespace: str = subnamespace
+
+        if auto_subnamespace:
+            self.subnamespace = self.name
     
     @property
     def pieces(self) -> list[CppPieceBuilder]:
@@ -435,7 +446,12 @@ class CppBuilder:
             definitions.append("\n")
 
         DECL_SEP_DEF = f"\n{ind}// ------------- //\n\n"
-        return "".join(declarations) + DECL_SEP_DEF + "".join(definitions)
+        built = "".join(declarations) + DECL_SEP_DEF + "".join(definitions)
+
+        if self.subnamespace != "":
+            built = f"namespace {self.subnamespace}\n{{\n{built}\n}}\n"
+
+        return built
     
     def build_includes(self) -> str:
         b = []
