@@ -100,11 +100,34 @@ def switch_lang_version(version: str) -> None:
     bopt.flags.add(cfg + version)
 
 
+def use_debug_build_instead() -> None:
+    global bopt
+
+    bopt.flags.discard("-O3")
+    bopt.flags.discard("-s")
+
+    bopt.flags.add("-g")
+    bopt.flags.add("-rdynamic")
+    bopt.flags.add("-DEASYSPOT_DEBUG")
+
+
+def use_release_build_instead() -> None:
+    global bopt
+
+    bopt.flags.discard("-g")
+    bopt.flags.discard("-rdynamic")
+    bopt.flags.discard("-DEASYSPOT_DEBUG")
+    
+    bopt.flags.add("-O3")
+    bopt.flags.add("-s")
+
+
 args: list[str] = []
 args_i: int = 0
 
 bopt = BuildOptions()
 use_cpp_instead()
+use_debug_build_instead()
 
 
 HELP = """
