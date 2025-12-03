@@ -100,26 +100,28 @@ def switch_lang_version(version: str) -> None:
     bopt.flags.add(cfg + version)
 
 
+DEBUG_BUILD_FLAGS = ["-g", "-rdynamic", "-DDEBUG", "-DEASYSPOT_DEBUG", "-D_GLIBCXX_DEBUG"]
+RELEASE_BUILD_FLAGS = ["-O3", "-s", "-DNDEBUG"]
+
+
 def use_debug_build_instead() -> None:
     global bopt
 
-    bopt.flags.discard("-O3")
-    bopt.flags.discard("-s")
+    for f in RELEASE_BUILD_FLAGS:
+        bopt.flags.discard(f)
 
-    bopt.flags.add("-g")
-    bopt.flags.add("-rdynamic")
-    bopt.flags.add("-DEASYSPOT_DEBUG")
+    for f in DEBUG_BUILD_FLAGS:
+        bopt.flags.add(f)
 
 
 def use_release_build_instead() -> None:
     global bopt
 
-    bopt.flags.discard("-g")
-    bopt.flags.discard("-rdynamic")
-    bopt.flags.discard("-DEASYSPOT_DEBUG")
-    
-    bopt.flags.add("-O3")
-    bopt.flags.add("-s")
+    for f in DEBUG_BUILD_FLAGS:
+        bopt.flags.discard(f)
+
+    for f in RELEASE_BUILD_FLAGS:
+        bopt.flags.add(f)
 
 
 args: list[str] = []
